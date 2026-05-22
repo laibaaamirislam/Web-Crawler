@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cctype>
 #include <regex>
+#include <limits.h>
 
 HttpServer::HttpServer(int port) : port(port) {}
 
@@ -243,9 +244,25 @@ json HttpServer::handle_post_crawl(const std::string& body) {
     int max_depth = data.value("max_depth", 1);
     int max_pages = data.value("max_pages", 8);
     
+    // Validate keyword (required and not empty/whitespace)
     if (keyword.empty()) {
         throw std::runtime_error("Keyword is required");
     }
+    
+    // Trim leading and trailing whitespace
+    size_t start = keyword.find_first_not_of(" \t\n\r");
+    if (start == std::string::npos) {
+        throw std::runtime_error("Keyword is required");
+    }
+    keyword = keyword.substr(start, keyword.find_last_not_of(" \t\n\r") - start + 1);
+    
+    // Validate and clamp max_depth (1-3)
+    if (max_depth < 1) max_depth = 1;
+    if (max_depth > 3) max_depth = 3;
+    
+    // Validate and clamp max_pages (2-20)
+    if (max_pages < 2) max_pages = 2;
+    if (max_pages > 20) max_pages = 20;
     
     // Create crawler and run
     ParallelCrawler crawler(keyword, max_depth, max_pages);
@@ -498,7 +515,16 @@ std::string HttpServer::create_error_response(const std::string& error_message, 
 }
 
 std::string HttpServer::serve_static_file(const std::string& file_path) {
-    std::string full_path = "/home/runner/work/Parallel-Web-Crawler/Parallel-Web-Crawler" + file_path;
+    // Get the current working directory
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) == nullptr) {
+        json error_json;
+        error_json["error"] = "Failed to determine current directory";
+        return create_json_response(error_json, 500);
+    }
+    
+    // Build the full path using relative path from current directory
+    std::string full_path = std::string(cwd) + file_path;
     
     std::ifstream file(full_path, std::ios::binary);
     if (!file.is_open()) {
