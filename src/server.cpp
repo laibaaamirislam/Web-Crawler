@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <cctype>
 #include <regex>
-#include <limits.h>
+#include <filesystem>
 
 HttpServer::HttpServer(int port) : port(port) {}
 
@@ -515,16 +515,8 @@ std::string HttpServer::create_error_response(const std::string& error_message, 
 }
 
 std::string HttpServer::serve_static_file(const std::string& file_path) {
-    // Get the current working directory
-    char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) == nullptr) {
-        json error_json;
-        error_json["error"] = "Failed to determine current directory";
-        return create_json_response(error_json, 500);
-    }
-    
-    // Build the full path using relative path from current directory
-    std::string full_path = std::string(cwd) + file_path;
+    // Build the full path using current working directory
+    std::filesystem::path full_path = std::filesystem::current_path() / file_path;
     
     std::ifstream file(full_path, std::ios::binary);
     if (!file.is_open()) {
