@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Parallel Web Crawler — PDC Project</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <!-- ── HEADER ── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">PARALLELCRAWL<span class="logo-sub">PDC</span></span>
+      </div>
+      <p class="tagline">Multi-Website Parallel Crawler with Keyword Search</p>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ── SITES BADGE ROW ── -->
+    <section class="sites-section" id="sites-section">
+      <h3 class="section-label"><span class="dot"></span> Predefined Target Sites</h3>
+      <div class="sites-list" id="sites-list">
+        <span class="site-badge loading-pulse">Loading sites…</span>
+      </div>
+    </section>
+
+    <!-- ── CONTROL PANEL ── -->
+    <section class="control-panel">
+      <h2 class="panel-title">⚙ Crawl Configuration</h2>
+
+      <div class="form-grid">
+
+        <div class="input-group full-width">
+          <label for="keyword">
+            <span class="label-icon">🔑</span> Search Keyword
+          </label>
+          <input type="text" id="keyword" placeholder="e.g. parallel, python, algorithm…" autocomplete="off"/>
+        </div>
+
+        <div class="input-group">
+          <label for="max_depth">
+            <span class="label-icon">📐</span> Max Depth
+            <span class="hint">(1 – 3)</span>
+          </label>
+          <input type="number" id="max_depth" value="1" min="1" max="3"/>
+        </div>
+
+        <div class="input-group">
+          <label for="max_pages">
+            <span class="label-icon">📄</span> Max Pages / Site
+            <span class="hint">(2 – 20)</span>
+          </label>
+          <input type="number" id="max_pages" value="6" min="2" max="20"/>
+        </div>
+
+      </div>
+
+      <button id="crawl-btn" class="crawl-btn" onclick="startCrawl()">
+        <span class="btn-icon">▶</span>
+        <span class="btn-text">Start Crawling</span>
+      </button>
+
+      <!-- Progress bar -->
+      <div class="progress-wrap" id="progress-wrap" style="display:none">
+        <div class="progress-bar" id="progress-bar"></div>
+        <span class="progress-label" id="progress-label">Initializing…</span>
+      </div>
+    </section>
+
+    <!-- ── PARALLELISM DIAGRAM ── -->
+    <section class="diagram-section">
+      <h3 class="section-label"><span class="dot"></span> Architecture Overview</h3>
+      <div class="arch-diagram">
+        <div class="arch-node input-node">User Input<br/><small>Keyword + Settings</small></div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-row">
+          <div class="arch-node site-node">Site Thread 1<br/><small>Wikipedia</small></div>
+          <div class="arch-node site-node">Site Thread 2<br/><small>BBC News</small></div>
+          <div class="arch-node site-node">Site Thread 3<br/><small>Python.org</small></div>
+          <div class="arch-node site-node">...N Threads<br/><small>+7 More Sites</small></div>
+        </div>
+        <div class="arch-arrow">↓ Shared BFS Queue ↓</div>
+        <div class="arch-row">
+          <div class="arch-node worker-node">Worker T1</div>
+          <div class="arch-node worker-node">Worker T2</div>
+          <div class="arch-node worker-node">Worker T3</div>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-node result-node">Fetch → Extract → Search → Highlight → Results</div>
+      </div>
+    </section>
+
+    <!-- ── LOGS ── -->
+    <section class="logs-section" id="logs-section" style="display:none">
+      <div class="section-header">
+        <h3 class="section-label"><span class="dot green"></span> Real-Time Crawling Logs</h3>
+        <button class="clear-btn" onclick="clearLogs()">Clear</button>
+      </div>
+      <div class="log-console" id="log-console">
+        <!-- Log entries injected by JS -->
+      </div>
+    </section>
+
+    <!-- ── RESULTS ── -->
+    <section class="results-section" id="results-section" style="display:none">
+      <h3 class="section-label"><span class="dot yellow"></span> Crawl Results</h3>
+
+      <!-- Stats row -->
+      <div class="stats-row" id="stats-row"></div>
+
+      <!-- Matched URLs -->
+      <div id="matches-container">
+        <h4 class="sub-label">✅ Pages containing keyword:</h4>
+        <div class="matches-list" id="matches-list"></div>
+      </div>
+
+      <!-- No results -->
+      <div class="no-results" id="no-results" style="display:none">
+        <span>🔍</span> No pages containing the keyword were found.
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── FOOTER ── -->
+  <footer class="site-footer">
+    <p>PDC Project · Parallel &amp; Distributed Computing · <span id="year"></span></p>
+  </footer>
+
+  <script src="/static/script.js"></script>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

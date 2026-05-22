@@ -1,0 +1,34 @@
+# Build artifacts
+build/
+cmake_build_dir/
+*.o
+*.a
+*.so
+*.dylib
+
+# CMake
+CMakeUserPresets.json
+CMakeSettings.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.tox/
+
+# Dependencies
+/include/json/.gitkeep
+
+# Executables
+*.exe
+parallel_web_crawler
