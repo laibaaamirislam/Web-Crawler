@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cctype>
 #include <regex>
+#include <filesystem>
 
 HttpServer::HttpServer(int port) : port(port) {}
 
@@ -243,9 +244,26 @@ json HttpServer::handle_post_crawl(const std::string& body) {
     int max_depth = data.value("max_depth", 1);
     int max_pages = data.value("max_pages", 8);
     
+    // Validate keyword (required and not empty/whitespace)
     if (keyword.empty()) {
         throw std::runtime_error("Keyword is required");
     }
+    
+    // Trim leading and trailing whitespace
+    size_t start = keyword.find_first_not_of(" \t\n\r");
+    if (start == std::string::npos) {
+        throw std::runtime_error("Keyword is required");
+    }
+    size_t end = keyword.find_last_not_of(" \t\n\r");
+    keyword = keyword.substr(start, end - start + 1);
+    
+    // Validate and clamp max_depth (1-3)
+    if (max_depth < 1) max_depth = 1;
+    if (max_depth > 3) max_depth = 3;
+    
+    // Validate and clamp max_pages (2-20)
+    if (max_pages < 2) max_pages = 2;
+    if (max_pages > 20) max_pages = 20;
     
     // Create crawler and run
     ParallelCrawler crawler(keyword, max_depth, max_pages);
@@ -498,9 +516,36 @@ std::string HttpServer::create_error_response(const std::string& error_message, 
 }
 
 std::string HttpServer::serve_static_file(const std::string& file_path) {
-    std::string full_path = "/home/runner/work/Parallel-Web-Crawler/Parallel-Web-Crawler" + file_path;
+    // Sanitize file_path by removing leading slashes to prevent absolute path attacks
+    std::string sanitized_path = file_path;
+    while (!sanitized_path.empty() && sanitized_path[0] == '/') {
+        sanitized_path = sanitized_path.substr(1);
+    }
     
-    std::ifstream file(full_path, std::ios::binary);
+    // Get canonical base path
+    std::filesystem::path base_path = std::filesystem::current_path();
+    std::filesystem::path canonical_base = std::filesystem::canonical(base_path);
+    
+    // Build requested path and use weakly_canonical for non-existent files
+    std::filesystem::path requested_path = base_path / sanitized_path;
+    
+    // Canonicalize and validate path to prevent directory traversal attacks
+    try {
+        std::filesystem::path canonical_requested = std::filesystem::weakly_canonical(requested_path);
+        
+        // Use lexically_relative to check if path is within base directory
+        if (canonical_requested.lexically_relative(canonical_base).string().find("..") == 0) {
+            json error_json;
+            error_json["error"] = "Access denied";
+            return create_json_response(error_json, 403);
+        }
+    } catch (const std::filesystem::filesystem_error&) {
+        json error_json;
+        error_json["error"] = "File not found";
+        return create_json_response(error_json, 404);
+    }
+    
+    std::ifstream file(requested_path.string(), std::ios::binary);
     if (!file.is_open()) {
         json error_json;
         error_json["error"] = "File not found";
