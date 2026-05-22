@@ -254,7 +254,8 @@ json HttpServer::handle_post_crawl(const std::string& body) {
     if (start == std::string::npos) {
         throw std::runtime_error("Keyword is required");
     }
-    keyword = keyword.substr(start, keyword.find_last_not_of(" \t\n\r") - start + 1);
+    size_t end = keyword.find_last_not_of(" \t\n\r");
+    keyword = keyword.substr(start, end - start + 1);
     
     // Validate and clamp max_depth (1-3)
     if (max_depth < 1) max_depth = 1;
@@ -516,9 +517,28 @@ std::string HttpServer::create_error_response(const std::string& error_message, 
 
 std::string HttpServer::serve_static_file(const std::string& file_path) {
     // Build the full path using current working directory
-    std::filesystem::path full_path = std::filesystem::current_path() / file_path;
+    std::filesystem::path base_path = std::filesystem::current_path();
+    std::filesystem::path requested_path = base_path / file_path;
     
-    std::ifstream file(full_path, std::ios::binary);
+    // Canonicalize and validate path to prevent directory traversal attacks
+    try {
+        std::filesystem::path canonical_requested = std::filesystem::canonical(requested_path);
+        std::filesystem::path canonical_base = std::filesystem::canonical(base_path);
+        
+        // Check that the canonical requested path starts with the canonical base path
+        if (canonical_requested.string().find(canonical_base.string()) != 0) {
+            json error_json;
+            error_json["error"] = "Access denied";
+            return create_json_response(error_json, 403);
+        }
+    } catch (const std::filesystem::filesystem_error&) {
+        // Path doesn't exist or can't be canonicalized
+        json error_json;
+        error_json["error"] = "File not found";
+        return create_json_response(error_json, 404);
+    }
+    
+    std::ifstream file(requested_path.string(), std::ios::binary);
     if (!file.is_open()) {
         json error_json;
         error_json["error"] = "File not found";
