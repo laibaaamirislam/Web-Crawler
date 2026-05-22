@@ -516,23 +516,30 @@ std::string HttpServer::create_error_response(const std::string& error_message, 
 }
 
 std::string HttpServer::serve_static_file(const std::string& file_path) {
-    // Build the full path using current working directory
+    // Sanitize file_path by removing leading slashes to prevent absolute path attacks
+    std::string sanitized_path = file_path;
+    while (!sanitized_path.empty() && sanitized_path[0] == '/') {
+        sanitized_path = sanitized_path.substr(1);
+    }
+    
+    // Get canonical base path
     std::filesystem::path base_path = std::filesystem::current_path();
-    std::filesystem::path requested_path = base_path / file_path;
+    std::filesystem::path canonical_base = std::filesystem::canonical(base_path);
+    
+    // Build requested path and use weakly_canonical for non-existent files
+    std::filesystem::path requested_path = base_path / sanitized_path;
     
     // Canonicalize and validate path to prevent directory traversal attacks
     try {
-        std::filesystem::path canonical_requested = std::filesystem::canonical(requested_path);
-        std::filesystem::path canonical_base = std::filesystem::canonical(base_path);
+        std::filesystem::path canonical_requested = std::filesystem::weakly_canonical(requested_path);
         
-        // Check that the canonical requested path starts with the canonical base path
-        if (canonical_requested.string().find(canonical_base.string()) != 0) {
+        // Use lexically_relative to check if path is within base directory
+        if (canonical_requested.lexically_relative(canonical_base).string().find("..") == 0) {
             json error_json;
             error_json["error"] = "Access denied";
             return create_json_response(error_json, 403);
         }
     } catch (const std::filesystem::filesystem_error&) {
-        // Path doesn't exist or can't be canonicalized
         json error_json;
         error_json["error"] = "File not found";
         return create_json_response(error_json, 404);
